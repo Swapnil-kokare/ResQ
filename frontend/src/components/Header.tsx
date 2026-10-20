@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, Activity, ShieldCheck, Clock } from 'lucide-react'
+import { Activity, ShieldCheck, Clock } from 'lucide-react'
 
 interface HeaderProps {
   isBackendHealthy: boolean | null
@@ -11,9 +11,11 @@ export const Header: React.FC<HeaderProps> = ({ isBackendHealthy, lastSolvingTim
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-500/20">
-            <Sparkles className="w-5 h-5" />
-          </div>
+          <img
+            src="/resq-icon.png"
+            alt="ResQ Logo"
+            className="h-10 w-10 rounded-xl object-contain shadow-xs border border-slate-200 bg-slate-950"
+          />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-slate-900 m-0">ResQ</h1>
