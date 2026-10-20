@@ -3,17 +3,164 @@
 > **"Your deadlines. A plan. Less panic."**  
 > An autonomous AI-powered study scheduler that solves conflict-free timetables for engineering students facing multi-course exam deadlines, daily fixed routines, and variable topic durations. Built as a college AI project using a formal **Constraint Satisfaction Problem (CSP)** with **Backtracking Search**, **Minimum Remaining Values (MRV)** heuristic, and **Forward Checking**.
 
+[![Live Frontend Demo](https://img.shields.io/badge/Frontend-Vercel-black?style=flat&logo=vercel)](https://resq-pi.vercel.app/)
+[![Live Backend API](https://img.shields.io/badge/Backend-Render-46E3B7?style=flat&logo=render)](https://resq-api-gmx2.onrender.com/docs)
+[![Python Tests](https://img.shields.io/badge/Tests-20%20Passed-success?style=flat&logo=pytest)](backend/tests)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+---
+
+## ⚡ Prerequisites & Local Setup Guide
+
+ResQ runs locally on your machine with **zero external database dependencies or cloud credentials required**. Follow the steps below to have both the FastAPI CSP backend and React frontend running locally in minutes.
+
+### 📋 Prerequisites & System Requirements
+
+Before running the project, make sure you have the following installed on your machine:
+
+| Prerequisite | Minimum Required | Recommended | Verification Command | Notes |
+|---|---|---|---|---|
+| **Python** | `3.10+` | `Python 3.13` | `python --version` | Powers FastAPI REST API & CSP backtracking engine |
+| **Node.js** | `18.0+` | `Node v20+` or `v24+` | `node -v` | Powers React 19 + Vite development server |
+| **npm** | `9.0+` | `npm 10+` | `npm -v` | Bundled with Node.js for dependency management |
+| **Git** | `2.30+` | Latest | `git --version` | For cloning repository and version control |
+| **Operating System** | Any modern OS | Windows 10/11, macOS, Linux | PowerShell, Terminal, or Bash |
+
+> [!NOTE]
+> No database (PostgreSQL, MySQL, MongoDB) or Docker daemon is required for local development. The CSP solver operates entirely in-memory with ultra-fast search performance (~4ms).
+
+---
+
+### 📥 1. Clone the Repository
+
+Open your terminal or PowerShell and clone the project:
+
+```powershell
+git clone https://github.com/Swapnil-kokare/ResQ.git
+cd ResQ
+```
+
+---
+
+### ⚙️ 2. Start the FastAPI Backend (Port 8000)
+
+The backend provides the CSP backtracking engine, validation logic, and REST API.
+
+1. **Navigate to the `backend` directory:**
+   ```powershell
+   cd backend
+   ```
+
+2. **(Recommended) Create and activate a Python virtual environment:**
+   - **On Windows (PowerShell):**
+     ```powershell
+     python -m venv .venv
+     .\.venv\Scripts\Activate.ps1
+     ```
+   - **On macOS / Linux:**
+     ```bash
+     python3 -m venv .venv
+     source .venv/bin/activate
+     ```
+
+3. **Install Python dependencies:**
+   ```powershell
+   python -m pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables (Optional):**
+   ```powershell
+   # Copy example environment configuration
+   cp .env.example .env
+   ```
+   *(Default settings in `.env.example` allow `http://localhost:5173` for CORS out of the box).*
+
+5. **Start the FastAPI server:**
+   ```powershell
+   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+
+6. **Verify backend is running:**
+   - 🟢 **API Root & Status:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+   - 📖 **Interactive Swagger UI:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+   - 🩺 **Health Check Endpoint:** [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
+
+---
+
+### 💻 3. Start the React + Vite Frontend (Port 5173)
+
+Open a **second terminal window** in the repository root:
+
+1. **Navigate to the `frontend` directory:**
+   ```powershell
+   cd frontend
+   ```
+
+2. **Install npm dependencies:**
+   ```powershell
+   npm install
+   ```
+
+3. **Configure environment variables (Optional):**
+   ```powershell
+   # Copy example environment configuration
+   cp .env.example .env.local
+   ```
+   *(By default, Vite's dev server proxies `/api` calls directly to `http://127.0.0.1:8000`).*
+
+4. **Launch the development server:**
+   ```powershell
+   npm run dev
+   ```
+
+5. **Open ResQ in your browser:**
+   👉 **`http://localhost:5173/`**
+
+   You will see the green **"Backend Connected"** indicator at the top right, confirming the React frontend is connected to your local CSP backend!
+
+---
+
+### 🧪 4. Verify Installation with Automated Tests
+
+Run the full automated test suite to ensure your local installation is verified:
+
+1. **Run Backend CSP & API Tests (20 Tests):**
+   ```powershell
+   # From the project root
+   python -m pytest backend/tests -v
+   ```
+   *Expected output: `20 passed in ~2.2s` (verifies MRV heuristics, forward checking, domain pruning, and independent validator).*
+
+2. **Verify Frontend TypeScript Compilation & Build:**
+   ```powershell
+   cd frontend
+   npm run build
+   ```
+   *Expected output: `✓ built in ~2.5s (0 errors)`.*
+
+---
+
+### 🌐 Live Production Deployments
+
+If you want to test without local installation:
+- **Live Web Application (Vercel):** [https://resq-pi.vercel.app/](https://resq-pi.vercel.app/)
+- **Live Backend API & Swagger Docs (Render):** [https://resq-api-gmx2.onrender.com/docs](https://resq-api-gmx2.onrender.com/docs)
+
 ---
 
 ## 🌟 Key Features
 
-- **Conflict-Free CSP Engine:** Models study chunks as discrete decision variables and candidate time slots as finite domains, enforcing zero-overlap hard constraints.
+- **Interactive College Exam Timetable:** Input official college exam schedules (Subject, Paper Title, Date/Time, Duration, Venue) with live countdown timers (`1d 2h left`, etc.) and a 1-click **"Load Sample Exam Timetable"** preset. The CSP solver treats exams as rigid commitments and automatically binds topic study deadlines to their respective paper dates.
+- **Dynamic Subject Proficiency Levels:** Assign Beginner (Weak), Intermediate, or Advanced (Mastered) ratings to subjects; the CSP solver automatically scales study duration, elevates priority, and enforces mandatory reinforcement revisions for weak topics.
+- **Conflict-Free CSP Engine:** Models study chunks as discrete decision variables and candidate time slots as finite domains, enforcing zero-overlap hard constraints using MRV and Forward Checking.
 - **Fixed Daily Commitments:** Pre-blocks college lectures (e.g. 08:00–14:00), daily sleep schedules (e.g. 22:30–07:00), and meal intervals (lunch, dinner).
 - **Mandatory Exam Revision:** Formally enforces revision sessions after core topic study is completed and strictly before the exam deadline.
-- **Dynamic Replanning with Session Locking:** Inject urgent tasks on any day; existing locked study sessions remain pinned to their exact slots while unpinned sessions are seamlessly reshuffled.
+- **Interactive Drag-and-Drop Timetable with Session Locking:** Move study sessions across days with automatic session locking; inject urgent tasks and unpinned sessions are seamlessly reshuffled.
+- **Formatted Document Export (PDF & Word):** One-click export to printable **PDF** or **Word (.doc)** formatted with official exam highlights, time breakdowns, and subject badges.
 - **Honest Infeasibility Detection & Bottleneck Root-Cause:** When a workload cannot fit mathematically into the available time before the deadline, ResQ honestly reports the infeasibility, diagnoses the bottleneck, and provides actionable suggestions.
 - **Real-Time Algorithm Activity Panel:** Telemetry directly streamed from the backend backtracking engine showing variables selected via MRV, candidate slots evaluated, forward checking domain wipeouts, and backtrack counts.
-- **Timetable Export:** One-click CSV export of the certified schedule for calendar imports or offline printing.
+- **4-Screen Planning Stepper:** Clean separation of concerns across Exam & Routine Setup, Subjects & Proficiency, Interactive Timetable, and AI CSP Activity.
 
 ---
 
@@ -21,10 +168,10 @@
 
 | Layer | Technologies | Role |
 |---|---|---|
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, Lucide Icons | Responsive student dashboard, interactive timetable, real-time activity stream |
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS v4, Lucide Icons | Multi-screen workflow, drag-and-drop timetable, document exporter, real-time activity stream |
 | **Backend** | Python 3.13, FastAPI, Uvicorn, Pydantic v2 | High-performance async REST API, input validation, OpenAPI/Swagger docs |
 | **AI / CSP Engine** | Custom Backtracking Solver (`backend/app/solver/`) | MRV variable selection, Degree tie-breaker, Forward Checking, Independent Validator |
-| **Testing** | Pytest, FastAPI TestClient, Vitest / TypeScript Build | 19 automated unit & integration tests covering feasible, conflicting, and infeasible cases |
+| **Testing** | Pytest, FastAPI TestClient, Vitest / TypeScript Build | 20 automated unit & integration tests covering feasible, conflicting, and infeasible cases |
 
 ---
 
@@ -37,21 +184,21 @@ A Constraint Satisfaction Problem is formally defined as a triplet: $\langle X, 
    - Each study topic $T_i$ with duration $H_i$ is decomposed into continuous study chunks:
      $$\{ V_{i,1}, V_{i,2}, \dots, V_{i,k} \}$$
      where each chunk duration $\le \text{max\_chunk\_hours}$ (default: 2.0h).
-   - If a topic has `requires_revision = True`, an additional revision chunk $V_{i,\text{rev}}$ is created.
+   - If a topic has `requires_revision = True` or `proficiency = 'beginner'`, an additional revision chunk $V_{i,\text{rev}}$ is created.
 
 2. **Domains ($D$):**
    - The planning horizon is divided into discrete candidate time intervals:
      $$\text{Slot}(d, t_{\text{start}}, t_{\text{end}})$$
    - Initial domain pruning eliminates all candidate slots that:
      - Fall outside the waking window ($t < \text{wake\_time}$ or $t + \text{dur} > \text{sleep\_time}$).
-     - Overlap with any fixed routine (college lectures, sleep, meals, exam).
-     - End after the topic's deadline ($t_{\text{end}} > \text{deadline}_i$).
+     - Overlap with any fixed routine (college lectures, sleep, meals, college exam papers).
+     - End after the topic's deadline or after the subject's college exam date ($t_{\text{end}} > \min(\text{deadline}_i, \text{exam\_date}_i)$).
 
 3. **Hard Constraints ($C$):**
    - **$C_1$ (Pairwise Non-Overlap):** For any two scheduled study sessions $S_a$ and $S_b$:
      $$\text{end}(S_a) + \text{buffer} \le \text{start}(S_b) \quad \lor \quad \text{end}(S_b) + \text{buffer} \le \text{start}(S_a)$$
-   - **$C_2$ (Fixed Commitment Immunity):** No session overlaps college, sleep, or meals.
-   - **$C_3$ (Deadline Compliance):** $\text{end}(S) \le \text{deadline}(T)$.
+   - **$C_2$ (Fixed Commitment & Exam Immunity):** No session overlaps college lectures, sleep, meals, or official college exam hours.
+   - **$C_3$ (Deadline & Exam Compliance):** $\text{end}(S) \le \text{deadline}(T)$.
    - **$C_4$ (Sequential Chunk Ordering):** Part $k$ must complete before Part $k+1$ can begin:
      $$\text{end}(V_{i,k}) \le \text{start}(V_{i,k+1})$$
    - **$C_5$ (Revision Precedence):** Revision session must occur *after* all study chunks for that subject finish and *before* the exam.
@@ -100,8 +247,9 @@ Ai-demo/
 │   │   │   ├── Header.tsx           # Navigation header with live backend status badge
 │   │   │   ├── ScenarioDemoBar.tsx  # Preset scenario buttons (Feasible, Urgent, Impossible)
 │   │   │   ├── DashboardStats.tsx   # Exam countdown, study hours & feasibility indicator
-│   │   │   ├── TimetableGrid.tsx    # Color-coded day-wise schedule & CSV exporter
-│   │   │   ├── TaskSubjectManager.tsx # Interactive topic CRUD, priorities & revision toggles
+│   │   │   ├── CollegeExamManager.tsx # Official university exam papers, countdowns & venues
+│   │   │   ├── TimetableGrid.tsx    # Drag-and-drop schedule, lock controls, PDF/Word export
+│   │   │   ├── TaskSubjectManager.tsx # Topic CRUD, exam quick-link chips & proficiency assessment
 │   │   │   ├── RoutineConstraintManager.tsx # Sleep, college, meals & slot size settings
 │   │   │   ├── InfeasibilityAlert.tsx # Clear bottleneck analysis & student recovery suggestions
 │   │   │   └── AlgorithmActivityPanel.tsx # Live CSP solver telemetry & step-by-step trace
@@ -109,7 +257,7 @@ Ai-demo/
 │   │   │   └── api.ts               # Typed REST API client
 │   │   ├── types/
 │   │   │   └── index.ts             # TypeScript definitions matching backend schemas
-│   │   ├── App.tsx                  # Root state orchestration & workflow manager
+│   │   ├── App.tsx                  # 4-screen stepper orchestration & workflow manager
 │   │   ├── main.tsx                 # React DOM mount point
 │   │   └── index.css                # Tailwind CSS styling & custom scrollbars
 │   ├── package.json                 # React, Vite, Tailwind v4, Lucide React dependencies
@@ -117,87 +265,6 @@ Ai-demo/
 │   └── index.html                   # HTML entrypoint with Inter typography & metadata
 ├── IMPLEMENTATION_STATUS.md         # Living development checklist & verification tracker
 └── README.md                        # Documentation & College Presentation Guide
-```
-
----
-
-## 🚀 How to Run Locally
-
-Both servers run locally without requiring any external accounts, API keys, or databases.
-
-### Prerequisites
-- **Python 3.10+** (Tested on Python 3.13)
-- **Node.js 18+** & **npm** (Tested on Node v24)
-- **Windows PowerShell** (or Linux/macOS bash)
-
----
-
-### Step 1: Start the FastAPI Backend
-
-Open a PowerShell terminal in the project root:
-
-```powershell
-# Navigate to the backend directory
-cd backend
-
-# Install dependencies
-python -m pip install -r requirements.txt
-
-# Start the FastAPI server
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-The backend is now live:
-- API Root: `http://127.0.0.1:8000/`
-- Interactive Swagger Documentation: `http://127.0.0.1:8000/docs`
-- Health Endpoint: `http://127.0.0.1:8000/api/health`
-
----
-
-### Step 2: Start the React Frontend
-
-Open a second PowerShell terminal in the project root:
-
-```powershell
-# Navigate to the frontend directory
-cd frontend
-
-# Install npm dependencies
-npm install
-
-# Start the Vite development server
-npm run dev
-```
-
-Open your browser to:
-👉 **`http://localhost:5173/`** (or `http://127.0.0.1:5173/`)
-
----
-
-### Step 3: Run Automated Tests
-
-To run the complete backend test suite:
-
-```powershell
-# Run all 19 pytest tests
-python -m pytest backend/tests -v
-```
-
-Expected output:
-```
-======================== 19 passed, 1 warning in 1.66s ========================
-```
-
-To run the frontend production build verification:
-
-```powershell
-cd frontend
-npm run build
-```
-
-Expected output:
-```
-✓ built in 1.92s (0 errors)
 ```
 
 ---
