@@ -19,6 +19,8 @@ export interface Topic {
   duration_hours: number
   priority: number
   deadline: string
+  proficiency?: 'beginner' | 'intermediate' | 'advanced'
+  exam_date?: string
   is_revision?: boolean
   requires_revision?: boolean
   completed?: boolean

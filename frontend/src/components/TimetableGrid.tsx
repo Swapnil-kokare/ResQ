@@ -13,7 +13,8 @@ import {
   Coffee,
   School,
   Printer,
-  FileText
+  FileText,
+  GripVertical
 } from 'lucide-react'
 import type { StudySession } from '../types'
 
@@ -27,6 +28,7 @@ interface TimetableGridProps {
   onReplan: () => void
   onToggleLock: (id: string) => void
   onToggleCompleteSession: (id: string) => void
+  onMoveSession?: (sessionId: string, targetDay: number) => void
 }
 
 export const TimetableGrid: React.FC<TimetableGridProps> = ({
@@ -38,9 +40,13 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   onGenerate,
   onReplan,
   onToggleLock,
-  onToggleCompleteSession
+  onToggleCompleteSession,
+  onMoveSession
 }) => {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all')
+  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null)
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null)
+  const [moveNotice, setMoveNotice] = useState<string | null>(null)
 
   // Helper to build clean HTML for both printable PDF and Word Doc
   const generateExportHtml = (isWordDoc: boolean = false) => {
@@ -482,7 +488,33 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
         </div>
       </div>
 
-      {/* Day Filter Tabs */}
+      {/* Move Notification Banner */}
+      {moveNotice && (
+        <div className="mb-4 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between animate-fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{moveNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onReplan}
+            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] shadow-2xs transition-colors shrink-0"
+          >
+            Replan Around Locked
+          </button>
+        </div>
+      )}
+
+      {/* Drag & Drop Guidance Tip */}
+      <div className="mb-3 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+        <span className="flex items-center gap-1.5 font-medium text-slate-700">
+          <GripVertical className="w-3.5 h-3.5 text-blue-600" />
+          <span><strong>Drag & Drop Timetable:</strong> Drag any study card directly onto a Day tab above or use the Day selector.</span>
+        </span>
+        <span className="text-[10px] text-slate-400">Moved sessions lock automatically to preserve manual placement</span>
+      </div>
+
+      {/* Day Filter Tabs (Also act as Drop Targets) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-200 mb-4 text-xs">
         <button
           type="button"
@@ -500,13 +532,36 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
           const dayDate = new Date(startDate)
           dayDate.setDate(dayDate.getDate() + dayNum - 1)
           const dateStr = dayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+          const isOver = dragOverDay === dayNum
+
           return (
             <button
               key={dayNum}
               type="button"
               onClick={() => setSelectedDay(dayNum)}
-              className={`px-3 py-1.5 rounded-md font-semibold transition-colors whitespace-nowrap ${
-                selectedDay === dayNum
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                if (dragOverDay !== dayNum) setDragOverDay(dayNum)
+              }}
+              onDragLeave={() => {
+                if (dragOverDay === dayNum) setDragOverDay(null)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                const sId = e.dataTransfer.getData('text/plain') || draggedSessionId
+                if (sId && onMoveSession) {
+                  onMoveSession(sId, dayNum)
+                  setMoveNotice(`Session successfully moved to Day ${dayNum} & locked! Click Replan to optimize remaining sessions.`)
+                  setTimeout(() => setMoveNotice(null), 6000)
+                }
+                setDragOverDay(null)
+                setDraggedSessionId(null)
+              }}
+              className={`px-3 py-1.5 rounded-md font-semibold transition-all whitespace-nowrap ${
+                isOver
+                  ? 'ring-2 ring-blue-500 bg-blue-100 text-blue-800 scale-105'
+                  : selectedDay === dayNum
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
@@ -542,16 +597,35 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             const Icon = style.icon
             const startTimeStr = new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             const endTimeStr = new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            const isDraggable = session.session_type !== 'fixed' && session.session_type !== 'break'
 
             return (
               <div
                 key={session.id}
+                draggable={isDraggable}
+                onDragStart={(e) => {
+                  if (!isDraggable) return
+                  e.dataTransfer.setData('text/plain', session.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                  setDraggedSessionId(session.id)
+                }}
+                onDragEnd={() => {
+                  setDraggedSessionId(null)
+                  setDragOverDay(null)
+                }}
                 className={`relative rounded-lg border p-3.5 transition-all shadow-2xs ${style.bg} ${
                   session.completed ? 'opacity-50' : ''
+                } ${isDraggable ? 'cursor-grab active:cursor-grabbing hover:shadow-sm' : ''} ${
+                  draggedSessionId === session.id ? 'opacity-40 scale-95 border-dashed border-blue-400' : ''
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
+                    {isDraggable && (
+                      <span className="text-slate-400 hover:text-slate-600 cursor-grab" title="Drag this session to another day tab">
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </span>
+                    )}
                     <span className={`p-1.5 rounded-md bg-white border border-slate-200 shadow-2xs ${style.accent}`}>
                       <Icon className="w-3.5 h-3.5" />
                     </span>
@@ -566,8 +640,29 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
                   </div>
 
                   {/* Actions for study / revision sessions */}
-                  {session.session_type !== 'fixed' && session.session_type !== 'break' && (
+                  {isDraggable && (
                     <div className="flex items-center gap-1">
+                      {/* Day selector dropdown for non-drag devices */}
+                      <select
+                        value={session.day_index}
+                        onChange={(e) => {
+                          const targetDay = parseInt(e.target.value, 10)
+                          if (targetDay !== session.day_index) {
+                            onMoveSession?.(session.id, targetDay)
+                            setMoveNotice(`Session moved to Day ${targetDay} and locked!`)
+                            setTimeout(() => setMoveNotice(null), 5000)
+                          }
+                        }}
+                        className="text-[10px] font-semibold bg-white border border-slate-200 rounded px-1 py-0.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        title="Move session to different day"
+                      >
+                        {daysArray.map((d) => (
+                          <option key={d} value={d}>
+                            D{d}
+                          </option>
+                        ))}
+                      </select>
+
                       <button
                         type="button"
                         onClick={() => onToggleLock(session.id)}

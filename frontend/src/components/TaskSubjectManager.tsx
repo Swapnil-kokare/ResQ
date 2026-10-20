@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, CheckSquare, Square, AlertCircle, Bookmark } from 'lucide-react'
+import { Plus, Trash2, CheckSquare, Square, AlertCircle, Bookmark, Zap, Clock, ShieldAlert } from 'lucide-react'
 import type { Topic } from '../types'
 
 interface TaskSubjectManagerProps {
@@ -20,9 +20,45 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
   const [subject, setSubject] = useState('')
   const [duration, setDuration] = useState('2.0')
   const [priority, setPriority] = useState('4')
+  const [proficiency, setProficiency] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate')
   const [deadline, setDeadline] = useState('2026-10-22T22:00:00')
   const [requiresRevision, setRequiresRevision] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Calculate human-readable time remaining until a deadline
+  const getTimeRemaining = (deadlineStr: string) => {
+    try {
+      const target = new Date(deadlineStr).getTime()
+      const now = new Date('2026-10-20T08:00:00').getTime() // Project reference base time
+      const diffMs = target - now
+      if (diffMs <= 0) return 'Deadline reached'
+      const diffHours = Math.round(diffMs / (1000 * 60 * 60))
+      if (diffHours < 24) return `${diffHours} hrs left`
+      const days = Math.floor(diffHours / 24)
+      const remHours = diffHours % 24
+      return `${days}d ${remHours}h left`
+    } catch {
+      return 'N/A'
+    }
+  }
+
+  // Handle proficiency change with automatic smart defaults
+  const handleProficiencyChange = (val: 'beginner' | 'intermediate' | 'advanced') => {
+    setProficiency(val)
+    if (val === 'beginner') {
+      // Beginner subjects require follow-up reinforcement
+      setRequiresRevision(true)
+      if (parseFloat(duration) < 2.0) {
+        setDuration('2.5')
+      }
+      setPriority('5')
+    } else if (val === 'advanced') {
+      if (parseFloat(duration) > 2.0) {
+        setDuration('1.5')
+      }
+      setPriority('3')
+    }
+  }
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,6 +83,7 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
       duration_hours: durNum,
       priority: parseInt(priority, 10),
       deadline: deadline,
+      proficiency: proficiency,
       requires_revision: requiresRevision,
       completed: false,
       color: '#3B82F6'
@@ -70,21 +107,85 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
     }
   }
 
+  const getProficiencyBadge = (prof: string = 'intermediate') => {
+    switch (prof) {
+      case 'beginner':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+            <ShieldAlert className="w-3 h-3 text-rose-600" />
+            Beginner (Weak)
+          </span>
+        )
+      case 'advanced':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <Zap className="w-3 h-3 text-emerald-600" />
+            Advanced (Mastered)
+          </span>
+        )
+      case 'intermediate':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+            Intermediate
+          </span>
+        )
+    }
+  }
+
+  // Distribution counters
+  const beginnerCount = topics.filter((t) => t.proficiency === 'beginner').length
+  const interCount = topics.filter((t) => t.proficiency === 'intermediate' || !t.proficiency).length
+  const advancedCount = topics.filter((t) => t.proficiency === 'advanced').length
+  const totalActiveHours = topics
+    .filter((t) => !t.completed)
+    .reduce((acc, t) => acc + t.duration_hours, 0)
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs mb-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base font-bold text-slate-900 m-0 flex items-center gap-2">
             <Bookmark className="w-4 h-4 text-blue-600" />
-            Task and Subject Manager
+            Subjects, Topics & Proficiency Assessment
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure required topics, duration, priority weights, and revision requirements.
+            Define subjects and your confidence level. The CSP solver schedules weak subjects earlier with mandatory reinforcement.
           </p>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-          {topics.filter((t) => !t.completed).length} Active Topics
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+            {totalActiveHours.toFixed(1)} hrs needed
+          </span>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+            {topics.filter((t) => !t.completed).length} Active Topics
+          </span>
+        </div>
+      </div>
+
+      {/* Proficiency Distribution Meter */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-white border border-rose-200 shadow-2xs">
+          <span className="font-semibold text-rose-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+            Beginner (Needs Focus)
+          </span>
+          <span className="font-bold text-rose-800">{beginnerCount} topics</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-white border border-amber-200 shadow-2xs">
+          <span className="font-semibold text-amber-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            Intermediate (Standard)
+          </span>
+          <span className="font-bold text-amber-800">{interCount} topics</span>
+        </div>
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-md bg-white border border-emerald-200 shadow-2xs">
+          <span className="font-semibold text-emerald-700 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Advanced (Lean Recap)
+          </span>
+          <span className="font-bold text-emerald-800">{advancedCount} topics</span>
+        </div>
       </div>
 
       {/* Input Form */}
@@ -113,6 +214,19 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
           </div>
 
           <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Your Proficiency</label>
+            <select
+              value={proficiency}
+              onChange={(e) => handleProficiencyChange(e.target.value as any)}
+              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white font-medium"
+            >
+              <option value="beginner">🔴 Beginner (Weak)</option>
+              <option value="intermediate">🟡 Intermediate</option>
+              <option value="advanced">🟢 Advanced (Strong)</option>
+            </select>
+          </div>
+
+          <div>
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">Duration (Hours)</label>
             <input
               type="number"
@@ -123,21 +237,6 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
               onChange={(e) => setDuration(e.target.value)}
               className="w-full text-xs px-2.5 py-1.5 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
             />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Priority (1-5)</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-            >
-              <option value="5">5 - Critical (Urgent)</option>
-              <option value="4">4 - High</option>
-              <option value="3">3 - Medium</option>
-              <option value="2">2 - Low</option>
-              <option value="1">1 - Optional</option>
-            </select>
           </div>
 
           <div>
@@ -152,15 +251,22 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-slate-200">
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
-            <input
-              type="checkbox"
-              checked={requiresRevision}
-              onChange={(e) => setRequiresRevision(e.target.checked)}
-              className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
-            />
-            <span className="font-medium">Mandatory Revision Session (adds 1h follow-up before exam)</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700">
+              <input
+                type="checkbox"
+                checked={requiresRevision}
+                onChange={(e) => setRequiresRevision(e.target.checked)}
+                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+              />
+              <span className="font-medium">Mandatory Revision Session (+1h follow-up)</span>
+            </label>
+
+            <span className="text-[11px] text-slate-500 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              {getTimeRemaining(deadline)}
+            </span>
+          </div>
 
           <button
             type="submit"
@@ -186,9 +292,10 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
             <tr>
               <th className="px-3 py-2.5 w-10 text-center">Status</th>
               <th className="px-3 py-2.5">Topic & Subject</th>
+              <th className="px-3 py-2.5">Proficiency</th>
               <th className="px-3 py-2.5">Duration</th>
               <th className="px-3 py-2.5">Priority</th>
-              <th className="px-3 py-2.5">Deadline</th>
+              <th className="px-3 py-2.5">Time Remaining</th>
               <th className="px-3 py-2.5">Revision</th>
               <th className="px-3 py-2.5 w-16 text-center">Action</th>
             </tr>
@@ -196,7 +303,7 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {topics.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-6 text-slate-400">
+                <td colSpan={8} className="text-center py-6 text-slate-400">
                   No topics defined yet. Click "Feasible Plan" above or add a topic.
                 </td>
               </tr>
@@ -223,6 +330,9 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
                     </div>
                     <div className="text-[11px] text-slate-500">{t.subject}</div>
                   </td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    {getProficiencyBadge(t.proficiency)}
+                  </td>
                   <td className="px-3 py-2.5 font-medium whitespace-nowrap">
                     {t.duration_hours} hr{t.duration_hours === 1 ? '' : 's'}
                   </td>
@@ -230,12 +340,18 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
                     {getPriorityBadge(t.priority)}
                   </td>
                   <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
-                    {new Date(t.deadline).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span className="font-medium text-slate-700">{getTimeRemaining(t.deadline)}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      {new Date(t.deadline).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5">
                     {t.is_revision ? (
@@ -269,3 +385,4 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
     </div>
   )
 }
+

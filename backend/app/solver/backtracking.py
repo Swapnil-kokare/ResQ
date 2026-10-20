@@ -138,11 +138,15 @@ class CSPSolver:
         # 2. Priority (descending - tie breaker)
         # 3. Deadline (ascending - tie breaker)
         # 4. Duration (descending - tie breaker)
+        prof_weights = {"beginner": 3, "intermediate": 2, "advanced": 1}
+
         def sort_key(var: CSPVariable):
             dom_len = len(domains[var.var_id])
+            p_weight = prof_weights.get(getattr(var, "proficiency", "intermediate"), 2)
             return (
                 dom_len,
                 -var.priority,
+                -p_weight,
                 var.deadline_dt,
                 -var.duration_hours
             )
@@ -150,10 +154,11 @@ class CSPSolver:
         unassigned.sort(key=sort_key)
         selected = unassigned[0]
 
+        prof_label = getattr(selected, "proficiency", "intermediate").capitalize()
         self._log_event(
             event_type="variable_selected",
             variable_name=selected.display_name,
-            reason=f"MRV selected: {len(domains[selected.var_id])} candidate slots remaining (Priority {selected.priority})"
+            reason=f"MRV selected: {len(domains[selected.var_id])} candidate slots (Priority {selected.priority}, {prof_label} level)"
         )
         return selected
 
@@ -163,8 +168,10 @@ class CSPSolver:
         """
         Soft preference value ordering:
         Prioritize slots matching student's preferred study windows,
-        and earlier slots in the day for high-priority subjects.
+        earlier prime slots for beginner/hard subjects, and spacing.
         """
+        prof = getattr(var, "proficiency", "intermediate")
+
         def slot_score(slot: TimeSlot) -> float:
             score = 0.0
             # Preferred study windows check
@@ -173,10 +180,15 @@ class CSPSolver:
                 if win.start_time <= slot_time_str <= win.end_time:
                     score -= 50.0 * win.preference_weight
             
-            # Prefer earlier days for high priority
-            score += slot.day_index * (6 - var.priority) * 5.0
-            # Earlier hours
-            score += slot.start_dt.hour
+            # Beginner subjects: heavily favor earlier days and alert morning hours
+            if prof == "beginner":
+                score += slot.day_index * 12.0 + slot.start_dt.hour * 2.0
+            elif prof == "advanced":
+                # Advanced subjects: concise review closer to deadline
+                score += (slot.start_dt.hour) * 0.5
+            else:
+                score += slot.day_index * (6 - var.priority) * 5.0
+                score += slot.start_dt.hour
             return score
 
         return sorted(candidate_slots, key=slot_score)

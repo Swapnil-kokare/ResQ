@@ -147,3 +147,25 @@ def test_locked_sessions_preservation():
     for slot in assignment.values():
         overlap = (slot.start_dt < locked_end) and (locked_start < slot.end_dt)
         assert not overlap
+
+
+def test_proficiency_adaptation():
+    """Verify that beginner topics automatically receive mandatory revision and priority boost."""
+    topic = Topic(
+        id="t_beginner",
+        name="Graph Theory",
+        subject="Discrete Math",
+        duration_hours=2.0,
+        priority=3,
+        proficiency="beginner",
+        deadline="2026-10-23T08:00:00"
+    )
+
+    problem = create_csp_problem([topic], [], get_base_routine(), get_base_settings())
+    # Should have study chunk + automatic 1h revision chunk
+    assert len(problem.variables) == 2
+    # Verify effective priority boosted from 3 to 4
+    assert problem.variables[0].priority == 4
+    assert problem.variables[0].proficiency == "beginner"
+    assert problem.variables[1].is_revision is True
+

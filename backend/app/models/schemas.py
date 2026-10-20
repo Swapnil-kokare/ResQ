@@ -38,6 +38,11 @@ class Topic(BaseModel):
     duration_hours: float = Field(..., gt=0, le=24, description="Required study duration in hours")
     priority: int = Field(default=3, ge=1, le=5, description="Priority from 1 (low) to 5 (high)")
     deadline: str = Field(..., description="ISO 8601 deadline datetime string, e.g. 2026-10-23T09:00:00")
+    proficiency: Literal["beginner", "intermediate", "advanced"] = Field(
+        default="intermediate",
+        description="User's proficiency: beginner needs extra attention and revision, advanced allows lean review"
+    )
+    exam_date: Optional[str] = Field(default=None, description="Optional exam date ISO string for this subject")
     is_revision: bool = Field(default=False, description="Whether this topic is purely a revision session")
     requires_revision: bool = Field(default=False, description="Whether a 1-hour revision session must be scheduled after completion")
     completed: bool = Field(default=False, description="Whether topic is already completed")

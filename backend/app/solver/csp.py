@@ -48,6 +48,7 @@ class CSPVariable:
         duration_hours: float,
         deadline_dt: datetime,
         priority: int,
+        proficiency: str = "intermediate",
         is_revision: bool = False,
         requires_revision: bool = False,
         chunk_index: int = 1,
@@ -61,6 +62,7 @@ class CSPVariable:
         self.duration_hours = duration_hours
         self.deadline_dt = deadline_dt
         self.priority = priority
+        self.proficiency = proficiency
         self.is_revision = is_revision
         self.requires_revision = requires_revision
         self.chunk_index = chunk_index
@@ -197,6 +199,17 @@ def create_csp_problem(
                     chunks.append(chunk)
                     remaining -= chunk
 
+        proficiency = getattr(topic, "proficiency", "intermediate")
+        effective_priority = topic.priority
+        effective_requires_revision = topic.requires_revision
+
+        if proficiency == "beginner":
+            # Beginner needs earlier scheduling in high-alert slots and active revision
+            effective_priority = min(5, topic.priority + 1)
+            effective_requires_revision = True
+        elif proficiency == "advanced":
+            effective_priority = max(1, topic.priority - 1)
+
         total_chunks = len(chunks)
         for idx, chunk_dur in enumerate(chunks, start=1):
             var_id = f"{topic.id}_chunk_{idx}"
@@ -207,17 +220,18 @@ def create_csp_problem(
                 subject=topic.subject,
                 duration_hours=chunk_dur,
                 deadline_dt=deadline_dt,
-                priority=topic.priority,
+                priority=effective_priority,
+                proficiency=proficiency,
                 is_revision=topic.is_revision,
-                requires_revision=topic.requires_revision,
+                requires_revision=effective_requires_revision,
                 chunk_index=idx,
                 total_chunks=total_chunks,
                 color=topic.color
             )
             variables.append(var)
 
-        # If requires_revision is True and not already marked is_revision, add a 1h revision chunk
-        if topic.requires_revision and not topic.is_revision:
+        # If effective_requires_revision is True and not already marked is_revision, add a 1h revision chunk
+        if effective_requires_revision and not topic.is_revision:
             rev_var = CSPVariable(
                 var_id=f"{topic.id}_revision",
                 topic_id=topic.id,
@@ -225,7 +239,8 @@ def create_csp_problem(
                 subject=topic.subject,
                 duration_hours=1.0,
                 deadline_dt=deadline_dt,
-                priority=topic.priority,
+                priority=effective_priority,
+                proficiency=proficiency,
                 is_revision=True,
                 requires_revision=False,
                 chunk_index=1,
