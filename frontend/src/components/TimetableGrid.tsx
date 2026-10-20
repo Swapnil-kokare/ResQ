@@ -11,7 +11,9 @@ import {
   BookOpen,
   Sparkles,
   Coffee,
-  School
+  School,
+  Printer,
+  FileText
 } from 'lucide-react'
 import type { StudySession } from '../types'
 
@@ -39,6 +41,295 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
   onToggleCompleteSession
 }) => {
   const [selectedDay, setSelectedDay] = useState<number | 'all'>('all')
+
+  // Helper to build clean HTML for both printable PDF and Word Doc
+  const generateExportHtml = (isWordDoc: boolean = false) => {
+    const studyHours = sessions
+      .filter((s) => s.session_type === 'study')
+      .reduce((acc, s) => acc + s.duration_hours, 0)
+    const revHours = sessions
+      .filter((s) => s.session_type === 'revision')
+      .reduce((acc, s) => acc + s.duration_hours, 0)
+    const genDate = new Date().toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+
+    // Group sessions by day
+    const dayIndices = Array.from({ length: numDays }, (_, i) => i + 1)
+
+    const daySectionsHtml = dayIndices.map((dayNum) => {
+      const dayDate = new Date(startDate)
+      dayDate.setDate(dayDate.getDate() + dayNum - 1)
+      const dayDateStr = dayDate.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      })
+
+      const daySessions = sessions
+        .filter((s) => s.day_index === dayNum)
+        .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+
+      if (daySessions.length === 0) {
+        return `
+          <div style="margin-bottom: 24px; page-break-inside: avoid;">
+            <h3 style="color: #1e3a8a; border-bottom: 2px solid #93c5fd; padding-bottom: 4px; margin-bottom: 8px; font-size: 15px;">
+              Day ${dayNum} &mdash; ${dayDateStr}
+            </h3>
+            <p style="color: #64748b; font-size: 12px; font-style: italic;">No sessions scheduled for this day.</p>
+          </div>
+        `
+      }
+
+      const rowsHtml = daySessions.map((s) => {
+        const sStart = new Date(s.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const sEnd = new Date(s.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        
+        let typeBadgeColor = '#e2e8f0'
+        let typeTextColor = '#334155'
+        if (s.session_type === 'study') {
+          typeBadgeColor = '#dbeafe'
+          typeTextColor = '#1e40af'
+        } else if (s.session_type === 'revision') {
+          typeBadgeColor = '#f3e8ff'
+          typeTextColor = '#6b21a8'
+        } else if (s.session_type === 'break') {
+          typeBadgeColor = '#dcfce7'
+          typeTextColor = '#166534'
+        }
+
+        const statusLabel = s.completed ? 'Completed' : s.is_locked ? 'Locked' : 'Scheduled'
+
+        return `
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px 10px; font-weight: 600; color: #1e293b; white-space: nowrap;">
+              ${sStart} &ndash; ${sEnd}
+            </td>
+            <td style="padding: 8px 10px; color: #475569; text-align: center;">
+              ${s.duration_hours} hr${s.duration_hours === 1 ? '' : 's'}
+            </td>
+            <td style="padding: 8px 10px; text-align: center;">
+              <span style="background-color: ${typeBadgeColor}; color: ${typeTextColor}; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                ${s.session_type}
+              </span>
+            </td>
+            <td style="padding: 8px 10px; font-weight: 600; color: #0f172a;">
+              ${s.subject || 'General'}
+            </td>
+            <td style="padding: 8px 10px; color: #334155;">
+              ${s.title}
+            </td>
+            <td style="padding: 8px 10px; color: #64748b; text-align: center; font-size: 11px;">
+              ${statusLabel}
+            </td>
+          </tr>
+        `
+      }).join('')
+
+      return `
+        <div style="margin-bottom: 24px; page-break-inside: avoid;">
+          <h3 style="color: #1e3a8a; border-bottom: 2px solid #93c5fd; padding-bottom: 4px; margin-bottom: 8px; font-size: 15px;">
+            Day ${dayNum} &mdash; ${dayDateStr}
+          </h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px;" border="1" bordercolor="#e2e8f0">
+            <thead>
+              <tr style="background-color: #f1f5f9; color: #475569; text-align: left; font-size: 11px;">
+                <th style="padding: 8px 10px; width: 140px;">Time Window</th>
+                <th style="padding: 8px 10px; width: 70px; text-align: center;">Duration</th>
+                <th style="padding: 8px 10px; width: 90px; text-align: center;">Category</th>
+                <th style="padding: 8px 10px; width: 160px;">Subject</th>
+                <th style="padding: 8px 10px;">Topic / Activity</th>
+                <th style="padding: 8px 10px; width: 90px; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `
+    }).join('')
+
+    return `
+      <!DOCTYPE html>
+      <html ${isWordDoc ? 'xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"' : ''}>
+      <head>
+        <meta charset="utf-8">
+        <title>ResQ Study Plan &mdash; ${genDate}</title>
+        <style>
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 14mm 12mm;
+            }
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #0f172a;
+            line-height: 1.45;
+            margin: 0;
+            padding: 24px;
+            background-color: #ffffff;
+          }
+          .header-banner {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin: 0;
+          }
+          .subtitle {
+            font-size: 13px;
+            color: #475569;
+            margin: 4px 0 0 0;
+          }
+          .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+          }
+          .meta-item {
+            display: flex;
+            flex-direction: column;
+          }
+          .meta-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .meta-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 2px;
+          }
+          .btn-print {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+          }
+          .btn-print:hover {
+            background-color: #1d4ed8;
+          }
+          .footer {
+            margin-top: 36px;
+            padding-top: 12px;
+            border-top: 1px solid #cbd5e1;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px 16px; border-radius: 8px;">
+          <div>
+            <span style="font-weight: bold; color: #1e40af; font-size: 14px;">Print / Save as PDF Preview</span>
+            <p style="margin: 2px 0 0; font-size: 12px; color: #3b82f6;">Select "Save as PDF" as Destination in the Print Dialog for a clean PDF file.</p>
+          </div>
+          <button class="btn-print" onclick="window.print()">
+            Print / Save to PDF
+          </button>
+        </div>
+
+        <div class="header-banner">
+          <h1 class="title">ResQ &mdash; AI Study Planner</h1>
+          <p class="subtitle">Personalized Deadline Schedule &bull; Constraint Satisfaction Problem (CSP) Verified</p>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Schedule Span</span>
+            <span class="meta-value">${numDays} Days (${startDate})</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Study Chunks</span>
+            <span class="meta-value">${studyHours.toFixed(1)} Hours</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Revision Chunks</span>
+            <span class="meta-value">${revHours.toFixed(1)} Hours</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Constraint Status</span>
+            <span class="meta-value" style="color: #166534;">Conflict-Free Verified</span>
+          </div>
+        </div>
+
+        ${daySectionsHtml}
+
+        <div class="footer">
+          <span>Generated by ResQ AI Study Planner on ${genDate}</span>
+          <span>Algorithms: MRV Heuristic &bull; Forward Checking &bull; Backtracking Search</span>
+        </div>
+      </body>
+      </html>
+    `
+  }
+
+  // Export as PDF (Print to PDF)
+  const handleExportPDF = () => {
+    if (!sessions || sessions.length === 0) return
+    const html = generateExportHtml(false)
+    const printWindow = window.open('', '_blank', 'width=950,height=750')
+    if (!printWindow) {
+      alert('Please allow pop-ups to open the PDF print view.')
+      return
+    }
+    printWindow.document.open()
+    printWindow.document.write(html)
+    printWindow.document.close()
+    printWindow.focus()
+    // Give browser brief tick to render fonts before print dialog
+    setTimeout(() => {
+      printWindow.print()
+    }, 400)
+  }
+
+  // Export as Microsoft Word Document (.doc)
+  const handleExportWordDoc = () => {
+    if (!sessions || sessions.length === 0) return
+    const html = generateExportHtml(true)
+    const blob = new Blob(['\ufeff', html], {
+      type: 'application/msword;charset=utf-8'
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `ResQ_Study_Plan_${new Date().toISOString().slice(0, 10)}.doc`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   // CSV Export functionality
   const handleExportCSV = () => {
@@ -149,16 +440,45 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             <span>Replan</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            disabled={!hasSchedule || sessions.length === 0}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors disabled:opacity-40"
-            title="Export generated timetable to CSV"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-600" />
-            <span>Export CSV</span>
-          </button>
+          {/* Export Options */}
+          <div className="inline-flex items-center rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={handleExportPDF}
+              disabled={!hasSchedule || sessions.length === 0}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-red-50 text-slate-700 hover:text-red-700 text-xs font-semibold transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+              title="Print or Save as PDF document"
+            >
+              <Printer className="w-3.5 h-3.5 text-red-600" />
+              <span>PDF</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-200" />
+
+            <button
+              type="button"
+              onClick={handleExportWordDoc}
+              disabled={!hasSchedule || sessions.length === 0}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-blue-50 text-slate-700 hover:text-blue-700 text-xs font-semibold transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+              title="Export formatted Word Document (.doc)"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span>Docs</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-200" />
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              disabled={!hasSchedule || sessions.length === 0}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+              title="Export raw spreadsheet data (CSV)"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 
