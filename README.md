@@ -245,5 +245,45 @@ Use this script during your AI demonstration to impress examiners and faculty:
 
 ---
 
+## 🌐 Production Deployment Guide
+
+ResQ supports multiple deployment modes:
+
+### 1. Unified Docker Deployment (Recommended)
+You can run the entire production-grade stack (Frontend with Nginx + Backend with Uvicorn) using Docker Compose:
+
+```bash
+docker compose up --build
+```
+- Frontend will be accessible at: `http://localhost:80`
+- Backend API will be accessible at: `http://localhost:8000`
+
+---
+
+### 2. Cloud Platform Deployment (Free Tier Friendly)
+
+#### A. Backend Deployment (Render / Railway / Fly.io)
+1. Push this repository to your GitHub account.
+2. In [Render](https://render.com) or [Railway](https://railway.app), create a new **Web Service** connected to your repo.
+3. Configure the following settings:
+   - **Root Directory:** `backend`
+   - **Environment:** `Python`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. Set Environment Variables:
+   - `ALLOWED_ORIGINS=*` (or your frontend domain URL).
+5. Copy your deployed backend URL (e.g. `https://resq-api.onrender.com`).
+
+#### B. Frontend Deployment (Vercel / Netlify)
+1. In [Vercel](https://vercel.com), import your `ResQ` GitHub repository.
+2. Configure project settings:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** `frontend`
+3. Add Environment Variable:
+   - `VITE_API_BASE_URL` = `https://<YOUR_RENDER_BACKEND_URL>/api`
+4. Click **Deploy**. Vercel will automatically use `vercel.json` to handle SPA rewrites.
+
+---
+
 ## 📜 License
 MIT License. Created for the College AI Engineering Project.
