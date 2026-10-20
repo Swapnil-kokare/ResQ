@@ -12,8 +12,8 @@ const getApiBase = (): string => {
   if (envUrl && typeof envUrl === 'string') {
     return envUrl.replace(/\/+$/, '')
   }
-  // Default to relative /api in production (reverse proxy/Vercel rewrite) or localhost in dev
-  return import.meta.env.PROD ? '/api' : 'http://127.0.0.1:8000/api'
+  // Default to the live Render backend URL in production, or localhost in dev
+  return import.meta.env.PROD ? 'https://resq-api-gmx2.onrender.com/api' : 'http://127.0.0.1:8000/api'
 }
 
 const API_BASE = getApiBase()
