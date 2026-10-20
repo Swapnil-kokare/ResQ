@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, CheckSquare, Square, AlertCircle, Bookmark, Zap, Clock, ShieldAlert } from 'lucide-react'
-import type { Topic } from '../types'
+import { Plus, Trash2, CheckSquare, Square, AlertCircle, Bookmark, Zap, Clock, ShieldAlert, GraduationCap } from 'lucide-react'
+import type { Topic, CollegeExamPaper } from '../types'
 
 interface TaskSubjectManagerProps {
   topics: Topic[]
+  collegeExams?: CollegeExamPaper[]
   onAddTopic: (topic: Topic) => void
   onUpdateTopic: (topic: Topic) => void
   onDeleteTopic: (id: string) => void
@@ -12,6 +13,7 @@ interface TaskSubjectManagerProps {
 
 export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
   topics,
+  collegeExams = [],
   onAddTopic,
   onDeleteTopic,
   onToggleComplete
@@ -187,6 +189,50 @@ export const TaskSubjectManager: React.FC<TaskSubjectManagerProps> = ({
           <span className="font-bold text-emerald-800">{advancedCount} topics</span>
         </div>
       </div>
+
+      {/* College Exam Quick-Pick Chips */}
+      {collegeExams && collegeExams.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-rose-50/70 border border-rose-200">
+          <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+              <GraduationCap className="w-4 h-4 text-rose-600" />
+              Quick-Link to College Exam Paper:
+            </span>
+            <span className="text-[11px] text-rose-600">
+              Click an exam to automatically prefill Subject and lock the Deadline!
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {collegeExams.map((ex) => {
+              const isSelected = subject.trim().toLowerCase() === ex.subject.trim().toLowerCase()
+              return (
+                <button
+                  key={ex.id}
+                  type="button"
+                  onClick={() => {
+                    setSubject(ex.subject)
+                    setDeadline(ex.exam_date)
+                    if (!name.trim()) {
+                      setName(`${ex.subject} Core Concepts`)
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all border ${
+                    isSelected
+                      ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                      : 'bg-white text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>{ex.subject}</span>
+                  <span className="text-[10px] opacity-80">
+                    &bull; {new Date(ex.exam_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Input Form */}
       <form onSubmit={handleAdd} className="bg-slate-50/80 rounded-lg p-3.5 border border-slate-200 mb-5">

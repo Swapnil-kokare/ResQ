@@ -11,13 +11,15 @@ import type {
   PlanningSettings,
   FixedCommitment,
   ScheduleResponse,
-  DemoScenario
+  DemoScenario,
+  CollegeExamPaper
 } from './types'
 import { Header } from './components/Header'
 import { ScenarioDemoBar } from './components/ScenarioDemoBar'
 import { DashboardStats } from './components/DashboardStats'
 import { TaskSubjectManager } from './components/TaskSubjectManager'
 import { RoutineConstraintManager } from './components/RoutineConstraintManager'
+import { CollegeExamManager } from './components/CollegeExamManager'
 import { TimetableGrid } from './components/TimetableGrid'
 import { InfeasibilityAlert } from './components/InfeasibilityAlert'
 import { AlgorithmActivityPanel } from './components/AlgorithmActivityPanel'
@@ -73,6 +75,56 @@ const SCREENS: ScreenConfig[] = [
   }
 ]
 
+const DEFAULT_COLLEGE_EXAMS: CollegeExamPaper[] = [
+  {
+    id: 'exam-1',
+    subject: 'Computer Networks',
+    paper_title: 'Paper I: OSI, TCP/IP & Protocols',
+    exam_date: '2026-10-21T10:00:00',
+    duration_hours: 3.0,
+    venue: 'Hall A (Science Block)'
+  },
+  {
+    id: 'exam-2',
+    subject: 'Operating Systems',
+    paper_title: 'Paper II: Process Scheduling & Memory',
+    exam_date: '2026-10-22T14:00:00',
+    duration_hours: 3.0,
+    venue: 'Hall C (Tech Block)'
+  },
+  {
+    id: 'exam-3',
+    subject: 'Database Systems',
+    paper_title: 'Paper III: Relational Algebra & SQL',
+    exam_date: '2026-10-23T09:00:00',
+    duration_hours: 3.0,
+    venue: 'Auditorium'
+  }
+]
+
+const syncExamsToCommitments = (
+  exams: CollegeExamPaper[],
+  baseCommitments: FixedCommitment[]
+): FixedCommitment[] => {
+  const nonExamCommitments = baseCommitments.filter((fc) => fc.category !== 'exam')
+  const examCommitments: FixedCommitment[] = exams.map((ex) => {
+    const startDate = new Date(ex.exam_date)
+    const endDate = new Date(startDate.getTime() + ex.duration_hours * 60 * 60 * 1000)
+    // Format local ISO datetime string (without trailing Z)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const endStr = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}:00`
+
+    return {
+      id: `fc-exam-${ex.id}`,
+      name: `🎓 College Exam: ${ex.subject} (${ex.paper_title})`,
+      category: 'exam',
+      start_time: ex.exam_date,
+      end_time: endStr
+    }
+  })
+  return [...nonExamCommitments, ...examCommitments]
+}
+
 export const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('setup')
   const [isBackendHealthy, setIsBackendHealthy] = useState<boolean | null>(null)
@@ -105,9 +157,34 @@ export const App: React.FC = () => {
     search_timeout_seconds: 5.0
   })
   const [fixedCommitments, setFixedCommitments] = useState<FixedCommitment[]>([])
+  const [collegeExams, setCollegeExams] = useState<CollegeExamPaper[]>(DEFAULT_COLLEGE_EXAMS)
 
   // Solver output state
   const [scheduleResponse, setScheduleResponse] = useState<ScheduleResponse | null>(null)
+
+  // Handlers for College Exam Timetable
+  const handleAddCollegeExam = (newExam: CollegeExamPaper) => {
+    const updated = [...collegeExams, newExam]
+    setCollegeExams(updated)
+    const synced = syncExamsToCommitments(updated, fixedCommitments)
+    setFixedCommitments(synced)
+    setActiveScenarioId(null)
+  }
+
+  const handleRemoveCollegeExam = (id: string) => {
+    const updated = collegeExams.filter((e) => e.id !== id)
+    setCollegeExams(updated)
+    const synced = syncExamsToCommitments(updated, fixedCommitments)
+    setFixedCommitments(synced)
+    setActiveScenarioId(null)
+  }
+
+  const handleLoadPresetExams = () => {
+    setCollegeExams(DEFAULT_COLLEGE_EXAMS)
+    const synced = syncExamsToCommitments(DEFAULT_COLLEGE_EXAMS, fixedCommitments)
+    setFixedCommitments(synced)
+    setActiveScenarioId(null)
+  }
 
   // Initialize and check health
   useEffect(() => {
@@ -140,14 +217,16 @@ export const App: React.FC = () => {
     setTopics(scenario.request.topics)
     setRoutine(scenario.request.routine)
     setSettings(scenario.request.settings)
-    setFixedCommitments(scenario.request.fixed_commitments)
+    // Synchronize fixed commitments with current college exams
+    const syncedCommitments = syncExamsToCommitments(collegeExams, scenario.request.fixed_commitments)
+    setFixedCommitments(syncedCommitments)
 
     // Run solver automatically
     await triggerSolve(
       scenario.request.topics,
       scenario.request.routine,
       scenario.request.settings,
-      scenario.request.fixed_commitments
+      syncedCommitments
     )
   }
 
@@ -399,6 +478,15 @@ export const App: React.FC = () => {
               onReset={handleReset}
             />
 
+            {/* Official College Exam Timetable Input & Manager */}
+            <CollegeExamManager
+              exams={collegeExams}
+              startDate={settings.start_date}
+              onAddExam={handleAddCollegeExam}
+              onRemoveExam={handleRemoveCollegeExam}
+              onLoadPresetExams={handleLoadPresetExams}
+            />
+
             {/* Routine & Hard Constraints Form */}
             <RoutineConstraintManager
               routine={routine}
@@ -413,7 +501,7 @@ export const App: React.FC = () => {
             {/* Bottom Screen Navigation Bar */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-200">
               <span className="text-xs text-slate-500">
-                Step 1 of 4 &bull; Adjust routine hours and college commitments
+                Step 1 of 4 &bull; College exam papers & daily routine schedule
               </span>
               <button
                 type="button"
@@ -430,9 +518,10 @@ export const App: React.FC = () => {
         {/* SCREEN 2: Subjects & Proficiency Assessment */}
         {currentScreen === 'subjects' && (
           <div className="space-y-6">
-            {/* Task and Subject Manager with Dynamic Proficiency */}
+            {/* Task and Subject Manager with Dynamic Proficiency & Exam Quick-Link */}
             <TaskSubjectManager
               topics={topics}
+              collegeExams={collegeExams}
               onAddTopic={handleAddTopic}
               onUpdateTopic={handleUpdateTopic}
               onDeleteTopic={handleDeleteTopic}

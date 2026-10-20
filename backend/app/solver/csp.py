@@ -176,6 +176,24 @@ def create_csp_problem(
             continue
 
         deadline_dt = datetime.fromisoformat(topic.deadline.replace("Z", "+00:00"))
+        if getattr(topic, "exam_date", None):
+            try:
+                deadline_dt = datetime.fromisoformat(topic.exam_date.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
+        # Check if an explicit exam fixed commitment exists for this topic's subject
+        for fc in fixed_commitments:
+            if fc.category == "exam" and (
+                topic.subject.lower() in fc.name.lower() or fc.name.lower() in topic.subject.lower()
+            ):
+                try:
+                    fc_start = datetime.fromisoformat(fc.start_time.replace("Z", "+00:00"))
+                    if fc_start < deadline_dt:
+                        deadline_dt = fc_start
+                except Exception:
+                    pass
+
         dur = topic.duration_hours
         max_chunk = settings.max_chunk_hours
         min_chunk = settings.min_chunk_hours

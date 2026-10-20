@@ -73,15 +73,26 @@ def _build_fixed_sessions(problem: CSPProblem) -> List[StudySession]:
         dur = round((f_end - f_start).total_seconds() / 3600.0, 2)
         
         category = "fixed"
+        subj = "Routine Commitment"
+        color = "#94A3B8"
         cat_lower = label.lower()
-        if "meal" in cat_lower or "lunch" in cat_lower or "dinner" in cat_lower:
+        if "exam" in cat_lower:
+            category = "exam"
+            subj = "College Examination"
+            color = "#E11D48"
+        elif "meal" in cat_lower or "lunch" in cat_lower or "dinner" in cat_lower:
             category = "break"
+            subj = "Meal Break"
+            color = "#10B981"
+        elif "college" in cat_lower:
+            subj = "College Classes"
+            color = "#64748B"
 
         fixed_sessions.append(
             StudySession(
                 id=f"fixed_{idx}",
                 topic_id=None,
-                subject="Routine Commitment",
+                subject=subj,
                 title=label,
                 start_time=f_start.isoformat(),
                 end_time=f_end.isoformat(),
@@ -90,7 +101,7 @@ def _build_fixed_sessions(problem: CSPProblem) -> List[StudySession]:
                 session_type=category,  # type: ignore
                 is_locked=True,
                 completed=False,
-                color="#94A3B8"
+                color=color
             )
         )
 

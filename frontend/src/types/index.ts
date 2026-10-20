@@ -1,4 +1,13 @@
-export type SessionType = 'study' | 'revision' | 'break' | 'fixed'
+export type SessionType = 'study' | 'revision' | 'break' | 'fixed' | 'exam'
+
+export interface CollegeExamPaper {
+  id: string
+  subject: string
+  paper_title: string
+  exam_date: string
+  duration_hours: number
+  venue?: string
+}
 
 export interface MealInterval {
   name: string

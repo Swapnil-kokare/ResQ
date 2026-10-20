@@ -124,7 +124,7 @@ class StudySession(BaseModel):
     end_time: str    # ISO 8601
     day_index: int   # 1-based day index
     duration_hours: float
-    session_type: Literal["study", "revision", "break", "fixed"] = "study"
+    session_type: Literal["study", "revision", "break", "fixed", "exam"] = "study"
     is_locked: bool = False
     completed: bool = False
     color: Optional[str] = None

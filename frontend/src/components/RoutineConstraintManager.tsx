@@ -232,9 +232,9 @@ export const RoutineConstraintManager: React.FC<RoutineConstraintManagerProps> =
               </button>
             </form>
 
-            {fixedCommitments.length > 0 && (
+            {fixedCommitments.filter((fc) => fc.category !== 'exam').length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {fixedCommitments.map((fc) => (
+                {fixedCommitments.filter((fc) => fc.category !== 'exam').map((fc) => (
                   <span
                     key={fc.id}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-100 text-slate-800 text-xs border border-slate-200 font-medium"

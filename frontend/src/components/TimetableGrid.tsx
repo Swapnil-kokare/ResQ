@@ -14,7 +14,8 @@ import {
   School,
   Printer,
   FileText,
-  GripVertical
+  GripVertical,
+  GraduationCap
 } from 'lucide-react'
 import type { StudySession } from '../types'
 
@@ -102,6 +103,9 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
         } else if (s.session_type === 'revision') {
           typeBadgeColor = '#f3e8ff'
           typeTextColor = '#6b21a8'
+        } else if (s.session_type === 'exam') {
+          typeBadgeColor = '#fee2e2'
+          typeTextColor = '#991b1b'
         } else if (s.session_type === 'break') {
           typeBadgeColor = '#dcfce7'
           typeTextColor = '#166534'
@@ -399,6 +403,13 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
           badge: 'bg-emerald-100 text-emerald-800',
           icon: Coffee
         }
+      case 'exam':
+        return {
+          bg: 'bg-rose-50/90 border-rose-300 ring-1 ring-rose-200',
+          accent: 'text-rose-700',
+          badge: 'bg-rose-600 text-white font-extrabold shadow-2xs',
+          icon: GraduationCap
+        }
       case 'fixed':
       default:
         return {
@@ -597,7 +608,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({
             const Icon = style.icon
             const startTimeStr = new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             const endTimeStr = new Date(session.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            const isDraggable = session.session_type !== 'fixed' && session.session_type !== 'break'
+            const isDraggable = session.session_type !== 'fixed' && session.session_type !== 'break' && session.session_type !== 'exam'
 
             return (
               <div
